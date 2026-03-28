@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 const EXAMPLE = JSON.stringify(
@@ -27,11 +27,21 @@ export default function PackageInput() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dragActive, setDragActive] = useState(false);
+  const [easterEggOpen, setEasterEggOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
   const apiUrl =
     process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+
+  useEffect(() => {
+    if (!easterEggOpen) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setEasterEggOpen(false);
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [easterEggOpen]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -112,17 +122,57 @@ export default function PackageInput() {
     }
   }
 
+  function isImageDrop(file: File) {
+    if (file.type.startsWith("image/")) return true;
+    const ext = file.name.split(".").pop()?.toLowerCase();
+    return (
+      ext === "png" ||
+      ext === "jpg" ||
+      ext === "jpeg" ||
+      ext === "gif" ||
+      ext === "webp" ||
+      ext === "heic"
+    );
+  }
+
   function onDrop(e: React.DragEvent<HTMLDivElement>) {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
     const file = e.dataTransfer.files?.[0];
     if (!file) return;
+    if (isImageDrop(file)) {
+      setEasterEggOpen(true);
+      return;
+    }
     loadFileFromFile(file);
   }
 
   return (
     <form onSubmit={submit} className="space-y-4">
+      {easterEggOpen && (
+        <div
+          className="fixed inset-0 z-100 flex items-center justify-center bg-black/85 p-6 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Easter egg"
+          onClick={() => setEasterEggOpen(false)}
+        >
+          <div
+            className="relative max-h-[90vh] max-w-[min(92vw,520px)] overflow-hidden rounded-2xl border border-white/15 shadow-[0_24px_80px_rgba(0,0,0,0.75)] ring-2 ring-white/10"
+            onClick={(ev) => ev.stopPropagation()}
+          >
+            <img
+              src="/easter-egg.png"
+              alt=""
+              className="max-h-[85vh] w-auto max-w-full object-contain"
+            />
+            <span className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full border border-white/20 bg-black/55 px-3 py-1 text-xs text-white/70 backdrop-blur-sm">
+              Press Esc or click outside
+            </span>
+          </div>
+        </div>
+      )}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <label
