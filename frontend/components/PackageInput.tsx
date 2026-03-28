@@ -92,10 +92,29 @@ export default function PackageInput() {
     reader.readAsText(file);
   }, []);
 
+  function isLikelyJsonFile(file: File): boolean {
+    const name = file.name.trim().toLowerCase();
+    if (name.endsWith(".json")) return true;
+    const t = file.type.toLowerCase();
+    return (
+      t === "application/json" ||
+      t === "text/json" ||
+      t === "application/ld+json"
+    );
+  }
+
+  function handleChosenFile(file: File) {
+    if (!isLikelyJsonFile(file)) {
+      setEasterEggOpen(true);
+      return;
+    }
+    loadFileFromFile(file);
+  }
+
   function onFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    loadFileFromFile(file);
+    handleChosenFile(file);
     e.target.value = "";
   }
 
@@ -122,30 +141,13 @@ export default function PackageInput() {
     }
   }
 
-  function isImageDrop(file: File) {
-    if (file.type.startsWith("image/")) return true;
-    const ext = file.name.split(".").pop()?.toLowerCase();
-    return (
-      ext === "png" ||
-      ext === "jpg" ||
-      ext === "jpeg" ||
-      ext === "gif" ||
-      ext === "webp" ||
-      ext === "heic"
-    );
-  }
-
   function onDrop(e: React.DragEvent<HTMLDivElement>) {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
     const file = e.dataTransfer.files?.[0];
     if (!file) return;
-    if (isImageDrop(file)) {
-      setEasterEggOpen(true);
-      return;
-    }
-    loadFileFromFile(file);
+    handleChosenFile(file);
   }
 
   return (
@@ -203,7 +205,6 @@ export default function PackageInput() {
         <input
           ref={fileRef}
           type="file"
-          accept=".json"
           className="hidden"
           onChange={onFile}
         />
