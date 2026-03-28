@@ -27,7 +27,10 @@ export default function PackageInput() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dragActive, setDragActive] = useState(false);
-  const [easterEggOpen, setEasterEggOpen] = useState(false);
+  const [easterEggStage, setEasterEggStage] = useState<
+    null | "colin" | "gif"
+  >(null);
+  const [stage2Src, setStage2Src] = useState("/easter-egg-stage2.gif");
   const fileRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
@@ -35,13 +38,34 @@ export default function PackageInput() {
     process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
   useEffect(() => {
-    if (!easterEggOpen) return;
+    if (!easterEggStage) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [easterEggStage]);
+
+  useEffect(() => {
+    if (easterEggStage === "gif") {
+      setStage2Src("/easter-egg-stage2.gif");
+    }
+  }, [easterEggStage]);
+
+  useEffect(() => {
+    if (!easterEggStage) return;
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setEasterEggOpen(false);
+      if (e.key !== "Escape") return;
+      e.preventDefault();
+      if (easterEggStage === "colin") {
+        setEasterEggStage("gif");
+      } else {
+        setEasterEggStage(null);
+      }
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [easterEggOpen]);
+  }, [easterEggStage]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -105,7 +129,7 @@ export default function PackageInput() {
 
   function handleChosenFile(file: File) {
     if (!isLikelyJsonFile(file)) {
-      setEasterEggOpen(true);
+      setEasterEggStage("colin");
       return;
     }
     loadFileFromFile(file);
@@ -152,27 +176,37 @@ export default function PackageInput() {
 
   return (
     <form onSubmit={submit} className="space-y-4">
-      {easterEggOpen && (
+      {easterEggStage && (
         <div
-          className="fixed inset-0 z-100 flex items-center justify-center bg-black/85 p-6 backdrop-blur-sm"
+          className="fixed inset-0 z-100 h-dvh w-screen overflow-hidden bg-black"
           role="dialog"
           aria-modal="true"
           aria-label="Easter egg"
-          onClick={() => setEasterEggOpen(false)}
         >
-          <div
-            className="relative max-h-[90vh] max-w-[min(92vw,520px)] overflow-hidden rounded-2xl border border-white/15 shadow-[0_24px_80px_rgba(0,0,0,0.75)] ring-2 ring-white/10"
-            onClick={(ev) => ev.stopPropagation()}
-          >
-            <img
-              src="/easter-egg.png"
-              alt=""
-              className="max-h-[85vh] w-auto max-w-full object-contain"
-            />
-            <span className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full border border-white/20 bg-black/55 px-3 py-1 text-xs text-white/70 backdrop-blur-sm">
-              Press Esc or click outside
-            </span>
-          </div>
+          {easterEggStage === "colin" ? (
+            <>
+              <img
+                src="/easter-egg.png"
+                alt=""
+                className="absolute inset-0 h-full w-full object-cover object-center"
+              />
+              <p className="pointer-events-none absolute bottom-0 left-0 right-0 z-10 bg-linear-to-t from-black via-black/70 to-transparent px-6 pb-[max(2.5rem,env(safe-area-inset-bottom))] pt-24 text-center text-lg font-medium tracking-wide text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.85)] sm:text-xl">
+                esc to stop looking at colin
+              </p>
+            </>
+          ) : (
+            <>
+              <img
+                src={stage2Src}
+                alt=""
+                className="absolute inset-0 h-full w-full object-cover object-center"
+                onError={() => setStage2Src("/easter-egg-stage2.png")}
+              />
+              <p className="pointer-events-none absolute bottom-0 left-0 right-0 z-10 bg-linear-to-t from-black via-black/70 to-transparent px-6 pb-[max(2.5rem,env(safe-area-inset-bottom))] pt-24 text-center text-lg font-medium tracking-wide text-white/90 drop-shadow-[0_2px_12px_rgba(0,0,0,0.85)] sm:text-xl">
+                esc to return home
+              </p>
+            </>
+          )}
         </div>
       )}
       <div className="space-y-2">
