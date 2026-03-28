@@ -1,0 +1,16 @@
+{
+  "name": "audit-mixed-sample",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "next": "16.2.1",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "event-stream": "3.3.6",
+    "axios": "^1.7.7"
+  },
+  "devDependencies": {
+    "chalk": "^5.4.1",
+    "typescript": "^5.6.3"
+  }
+}

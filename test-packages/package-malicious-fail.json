@@ -1,0 +1,14 @@
+{
+  "name": "audit-malicious-fail-sample",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "event-stream": "3.3.6",
+    "flatmap-stream": "0.1.1",
+    "react": "^19.0.0"
+  },
+  "devDependencies": {
+    "lodas": "^1.0.0",
+    "expresss": "^1.0.0"
+  }
+}
