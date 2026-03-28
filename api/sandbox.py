@@ -27,7 +27,7 @@ def _create_and_run(package_name: str) -> dict:
     Creates workspace → uploads harness → installs pkg → runs harness → deletes workspace.
     Returns raw runtime report dict.
     """
-    from daytona_sdk import Daytona, CreateWorkspaceParams
+    from daytona import Daytona, CreateWorkspaceParams
 
     daytona = Daytona()
     workspace = None
