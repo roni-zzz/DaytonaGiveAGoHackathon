@@ -20,11 +20,12 @@ Known malicious patterns:
 - Crash on import can indicate obfuscated/corrupted malware
 - Multiple suspicious signals together = critical threat
 
-Return ONLY valid JSON matching the specified schema. No markdown, no explanation outside JSON."""
+Use the report_threat tool to submit your structured assessment."""
 
-THREAT_SCHEMA = {
-    "type": "json_schema",
-    "schema": {
+THREAT_TOOL = {
+    "name": "report_threat",
+    "description": "Submit the structured threat assessment for the npm package",
+    "input_schema": {
         "type": "object",
         "properties": {
             "severity": {
@@ -111,21 +112,20 @@ async def score_runtime(package_name: str, report: RuntimeReport) -> ThreatRepor
     response = await client.messages.create(
         model="claude-opus-4-6",
         max_tokens=1024,
-        thinking={"type": "adaptive"},
         system=SYSTEM_PROMPT,
+        tools=[THREAT_TOOL],
+        tool_choice={"type": "tool", "name": "report_threat"},
         messages=[{"role": "user", "content": prompt}],
-        output_config={"format": THREAT_SCHEMA},
     )
 
-    # Extract text from response (thinking blocks come first)
-    text = next(
-        (block.text for block in response.content if block.type == "text"),
+    tool_use = next(
+        (block for block in response.content if block.type == "tool_use"),
         None,
     )
-    if not text:
-        raise ValueError("Claude returned no text content")
+    if not tool_use:
+        raise ValueError("Claude returned no tool_use content")
 
-    data = json.loads(text)
+    data = tool_use.input
     return ThreatReport(
         severity=Severity(data["severity"]),
         behaviors=data["behaviors"],
