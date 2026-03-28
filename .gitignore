@@ -28,3 +28,13 @@ htmlcov/
 # Local environment files
 .env
 .env.*
+!.env.example
+
+# Node
+web/node_modules/
+web/.next/
+web/.env.local
+
+# OS
+.DS_Store
+Thumbs.db

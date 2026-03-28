@@ -1,0 +1,7 @@
+{
+  "name": "dep-auditor-harness",
+  "version": "1.0.0",
+  "description": "Sandbox harness for dependency auditor — runs inside Daytona workspaces",
+  "main": "index.js",
+  "private": true
+}
