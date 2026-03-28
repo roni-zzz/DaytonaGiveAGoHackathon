@@ -15,18 +15,38 @@ interface AuditSummary {
   error: number;
 }
 
-function Kpi({
+type SeverityBucket =
+  | "total"
+  | "critical"
+  | "high"
+  | "medium"
+  | "low"
+  | "safe"
+  | "error";
+
+function KpiButton({
   label,
   value,
   accent,
+  selected,
+  onClick,
 }: {
   label: string;
   value: number;
   accent: string;
+  selected: boolean;
+  onClick: () => void;
 }) {
   return (
-    <div
-      className={`rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 ${accent}`}
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={selected}
+      className={`w-full rounded-2xl border px-4 py-3 text-left transition ${accent} ${
+        selected
+          ? "border-white/35 bg-white/10 ring-2 ring-white/25"
+          : "border-white/10 bg-white/4 hover:border-white/20 hover:bg-white/[0.07]"
+      }`}
     >
       <p className="text-[11px] font-medium uppercase tracking-wider text-white/45">
         {label}
@@ -34,8 +54,63 @@ function Kpi({
       <p className="mt-1 font-mono text-2xl font-semibold tabular-nums text-white">
         {value}
       </p>
-    </div>
+    </button>
   );
+}
+
+function packagesInBucket(
+  packages: PackageResult[],
+  bucket: SeverityBucket
+): PackageResult[] {
+  switch (bucket) {
+    case "total":
+      return [...packages];
+    case "critical":
+      return packages.filter(
+        (p) => p.status === "complete" && p.severity === "critical"
+      );
+    case "high":
+      return packages.filter(
+        (p) => p.status === "complete" && p.severity === "high"
+      );
+    case "medium":
+      return packages.filter(
+        (p) => p.status === "complete" && p.severity === "medium"
+      );
+    case "low":
+      return packages.filter(
+        (p) => p.status === "complete" && p.severity === "low"
+      );
+    case "safe":
+      return packages.filter(
+        (p) => p.status === "complete" && p.severity === "safe"
+      );
+    case "error":
+      return packages.filter((p) => p.status === "error");
+    default:
+      return [];
+  }
+}
+
+function bucketTitle(bucket: SeverityBucket): string {
+  switch (bucket) {
+    case "total":
+      return "All packages in this audit";
+    case "critical":
+      return "Critical severity";
+    case "high":
+      return "High severity";
+    case "medium":
+      return "Medium severity";
+    case "low":
+      return "Low severity";
+    case "safe":
+      return "Safe — no suspicious signals";
+    case "error":
+      return "Sandbox run errors";
+    default:
+      return "";
+  }
 }
 
 function needsAttention(pkg: PackageResult): boolean {
@@ -66,6 +141,7 @@ export default function AuditResultsDashboard({
   const [aiSummary, setAiSummary] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(true);
   const [aiError, setAiError] = useState<string | null>(null);
+  const [activeBucket, setActiveBucket] = useState<SeverityBucket | null>(null);
 
   async function loadSummary() {
     setAiLoading(true);
@@ -111,40 +187,178 @@ export default function AuditResultsDashboard({
   const showDownload =
     summary.critical > 0 || summary.high > 0;
 
+  const filtered = activeBucket
+    ? packagesInBucket(packages, activeBucket)
+    : [];
+  const sortedFiltered =
+    activeBucket === "total"
+      ? filtered.sort((a, b) => {
+          const order: Record<string, number> = {
+            critical: 0,
+            high: 1,
+            medium: 2,
+            low: 3,
+            safe: 4,
+          };
+          const sa =
+            a.status === "error"
+              ? -1
+              : order[a.severity ?? "safe"] ?? 5;
+          const sb =
+            b.status === "error"
+              ? -1
+              : order[b.severity ?? "safe"] ?? 5;
+          if (sa !== sb) return sa - sb;
+          return b.triage_score - a.triage_score;
+        })
+      : filtered;
+
   return (
     <div className="space-y-8">
       <div>
         <h2 className="text-lg font-semibold text-white">Audit dashboard</h2>
         <p className="mt-1 text-sm text-white/50">
-          Open any row for full AI analysis, runtime metrics, and registry context.
+          Tap a category to see only those packages. &quot;Run errors&quot; are
+          failed sandboxes, not severity ratings.
         </p>
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
-        <Kpi label="Total" value={summary.total} accent="" />
-        <Kpi
+        <KpiButton
+          label="Total audits"
+          value={summary.total}
+          accent=""
+          selected={activeBucket === "total"}
+          onClick={() => setActiveBucket("total")}
+        />
+        <KpiButton
           label="Critical"
           value={summary.critical}
           accent="ring-1 ring-red-500/30"
+          selected={activeBucket === "critical"}
+          onClick={() => setActiveBucket("critical")}
         />
-        <Kpi
+        <KpiButton
           label="High"
           value={summary.high}
           accent="ring-1 ring-orange-500/25"
+          selected={activeBucket === "high"}
+          onClick={() => setActiveBucket("high")}
         />
-        <Kpi
+        <KpiButton
           label="Medium"
           value={summary.medium}
           accent="ring-1 ring-yellow-500/20"
+          selected={activeBucket === "medium"}
+          onClick={() => setActiveBucket("medium")}
         />
-        <Kpi label="Low" value={summary.low} accent="" />
-        <Kpi
+        <KpiButton
+          label="Low"
+          value={summary.low}
+          accent=""
+          selected={activeBucket === "low"}
+          onClick={() => setActiveBucket("low")}
+        />
+        <KpiButton
           label="Safe"
           value={summary.safe}
           accent="ring-1 ring-emerald-500/20"
+          selected={activeBucket === "safe"}
+          onClick={() => setActiveBucket("safe")}
         />
-        <Kpi label="Errors" value={summary.error} accent="" />
+        <KpiButton
+          label="Run errors"
+          value={summary.error}
+          accent=""
+          selected={activeBucket === "error"}
+          onClick={() => setActiveBucket("error")}
+        />
       </div>
+
+      {activeBucket !== null && (
+        <section className="rounded-3xl border border-white/12 bg-white/5 p-5 backdrop-blur-md">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h3 className="text-sm font-semibold text-white">
+                {bucketTitle(activeBucket)}{" "}
+                <span className="font-mono text-white/50">
+                  ({sortedFiltered.length})
+                </span>
+              </h3>
+              <p className="mt-1 text-xs text-white/45">
+                {activeBucket === "error"
+                  ? "These packages failed during install or harness execution in the sandbox."
+                  : activeBucket === "total"
+                    ? "Every dependency from this audit run."
+                    : "Packages scored at this severity after sandbox + AI analysis."}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setActiveBucket(null)}
+              className="shrink-0 rounded-xl border border-white/15 bg-white/10 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/16"
+            >
+              Clear filter
+            </button>
+          </div>
+          {sortedFiltered.length === 0 ? (
+            <p className="mt-4 text-sm text-white/45">No packages in this category.</p>
+          ) : (
+            <ul className="mt-4 space-y-3">
+              {sortedFiltered.map((pkg) => {
+                const cfg =
+                  pkg.severity && pkg.status === "complete"
+                    ? SEVERITY_CONFIG[pkg.severity]
+                    : null;
+                return (
+                  <li
+                    key={pkg.package}
+                    className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-black/30 p-4 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-mono font-semibold text-white break-all">
+                          {pkg.package}
+                        </span>
+                        {cfg && (
+                          <span
+                            className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${cfg.badge}`}
+                          >
+                            {cfg.icon} {cfg.label}
+                          </span>
+                        )}
+                        {pkg.status === "error" && (
+                          <span className="rounded-full bg-white/12 px-2 py-0.5 text-[11px] font-semibold text-white/75">
+                            Run error
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-1 text-xs text-white/40">{pkg.version}</p>
+                      {pkg.status === "error" && pkg.error && (
+                        <pre className="mt-2 max-h-24 overflow-auto rounded-lg bg-black/40 p-2 font-mono text-xs text-red-300/90">
+                          {pkg.error}
+                        </pre>
+                      )}
+                      {pkg.summary && pkg.status === "complete" && (
+                        <p className="mt-2 text-sm text-white/65 line-clamp-3">
+                          {pkg.summary}
+                        </p>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => onSelectPackage(pkg)}
+                      className="shrink-0 rounded-xl bg-white px-5 py-2.5 text-sm font-semibold text-black transition hover:bg-white/90"
+                    >
+                      View full analysis
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
+      )}
 
       <section className="rounded-3xl border border-white/12 bg-white/[0.05] p-5 backdrop-blur-md">
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -183,6 +397,7 @@ export default function AuditResultsDashboard({
         </div>
       )}
 
+      {activeBucket === null && (
       <section>
         <h3 className="mb-3 text-sm font-semibold text-white">
           Needs attention ({attention.length})
@@ -241,7 +456,9 @@ export default function AuditResultsDashboard({
           </ul>
         )}
       </section>
+      )}
 
+      {activeBucket === null && (
       <section>
         <h3 className="mb-3 text-sm font-semibold text-white">
           Clean ({safeList.length})
@@ -269,6 +486,7 @@ export default function AuditResultsDashboard({
           ))}
         </ul>
       </section>
+      )}
     </div>
   );
 }
