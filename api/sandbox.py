@@ -24,30 +24,21 @@ HARNESS_CODE = _load_harness()
 def _create_and_run(package_name: str) -> dict:
     """
     Synchronous Daytona operations (wrapped in asyncio.to_thread).
-    Creates workspace → uploads harness → installs pkg → runs harness → deletes workspace.
+    Creates sandbox -> uploads harness -> installs pkg -> runs harness -> deletes sandbox.
     Returns raw runtime report dict.
     """
-    from daytona import Daytona, CreateWorkspaceParams
+    from daytona_sdk import Daytona, CreateSandboxFromImageParams
 
     daytona = Daytona()
-    workspace = None
+    sandbox = None
 
     try:
-        # Create isolated Node.js workspace
-        params = CreateWorkspaceParams(language="javascript")
-        workspace = daytona.create(params)
+        # Create isolated Node.js sandbox
+        params = CreateSandboxFromImageParams(language="javascript", image="node:20")
+        sandbox = daytona.create(params)
 
         # Upload the harness script
-        try:
-            workspace.fs.upload_file("/harness.js", HARNESS_CODE.encode("utf-8"))
-        except AttributeError:
-            # Some SDK versions use filesystem instead of fs
-            try:
-                workspace.filesystem.upload_file("/harness.js", HARNESS_CODE.encode("utf-8"))
-            except AttributeError:
-                # Fallback: write via exec
-                escaped = HARNESS_CODE.replace("'", "'\\''")
-                workspace.process.exec(f"printf '%s' '{escaped}' > /harness.js")
+        sandbox.fs.upload_file(HARNESS_CODE.encode("utf-8"), "/harness.js")
 
         # Install the package and run the harness
         # Capture only stdout (harness writes JSON to stdout, install logs to stderr)
@@ -55,8 +46,8 @@ def _create_and_run(package_name: str) -> dict:
         run_cmd = f"NODE_PATH=/app/node_modules node /harness.js {package_name}"
         full_cmd = f"{install_cmd} && {run_cmd}"
 
-        result = workspace.process.exec(full_cmd, timeout=45)
-        output = result.result if hasattr(result, "result") else str(result)
+        result = sandbox.process.exec(full_cmd, timeout=45)
+        output = result.result
 
         # Extract JSON from output (last non-empty line)
         lines = [l.strip() for l in output.splitlines() if l.strip()]
@@ -91,15 +82,15 @@ def _create_and_run(package_name: str) -> dict:
         }
 
     finally:
-        if workspace is not None:
+        if sandbox is not None:
             try:
-                daytona.delete(workspace)
+                daytona.delete(sandbox)
             except Exception:
                 pass  # Best-effort cleanup
 
 
 async def run_in_sandbox(package_name: str) -> RuntimeReport:
-    """Async wrapper — runs Daytona operations in a thread pool."""
+    """Async wrapper -- runs Daytona operations in a thread pool."""
     raw = await asyncio.to_thread(_create_and_run, package_name)
     return RuntimeReport(**{
         "package": raw.get("package", package_name),
