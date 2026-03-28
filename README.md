@@ -1,4 +1,4 @@
-# 🔍 Dependency Auditor
+# 🔍 Specter
 
 > Point it at a `package.json`. Get a threat report on every suspicious dependency — what it **actually did at runtime**, not just what it claims to do.
 
